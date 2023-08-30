@@ -513,13 +513,9 @@ class IndexService(DocumentService):
             for r in replicas:
                 if r.coordinates in writer.retries:
                     conflicts = writer.conflicts[r.coordinates]
-                    if conflicts == 0:
+                    if conflicts in (0, 1):
                         retry_replicas.append(r)
-                    elif conflicts == 1:
-                        # FIXME: Track replica hub IDs
-                        #        https://github.com/DataBiosphere/azul/issues/5360
-                        writer.conflicts.pop(r.coordinates)
-                        num_present += 1
+                        num_present += conflicts
                     else:
                         assert False, (conflicts, r.coordinates)
                 else:
@@ -850,8 +846,6 @@ class IndexWriter:
     def _write_individually(self, documents: Iterable[Document]):
         log.info('Writing documents individually')
         for doc in documents:
-            if isinstance(doc, Replica):
-                assert doc.version_type is VersionType.create_only, doc
             try:
                 method = getattr(self.es_client, doc.op_type.name)
                 method(refresh=self.refresh, **doc.to_index(self.catalog, self.field_types))
@@ -911,6 +905,8 @@ class IndexWriter:
         if isinstance(doc, Aggregate):
             log.debug('Successfully wrote %s with %i contribution(s).',
                       coordinates, doc.num_contributions)
+        elif isinstance(doc, Replica) and doc.version_type is VersionType.none:
+            log.debug('Successfully updated %s.', coordinates)
         else:
             log.debug('Successfully wrote %s.', coordinates)
 

@@ -501,7 +501,8 @@ class BaseTransformer(Transformer, metaclass=ABCMeta):
 
     def _add_replica(self,
                      contribution: MutableJSON,
-                     entity: Union[api.Entity, DatedEntity]
+                     entity: Union[api.Entity, DatedEntity],
+                     hub_ids: list[EntityID]
                      ) -> Transform:
         entity_ref = EntityReference(entity_id=str(entity.document_id),
                                      entity_type=self.entity_type())
@@ -509,7 +510,7 @@ class BaseTransformer(Transformer, metaclass=ABCMeta):
             replica = None
         else:
             assert isinstance(entity, api.Entity), entity
-            replica = self._replica(entity.json, entity_ref)
+            replica = self._replica(entity.json, entity_ref, hub_ids)
         return (
             self._contribution(contribution, entity_ref),
             replica
@@ -1453,7 +1454,7 @@ class FileTransformer(PartitionedTransformer[api.File]):
                         additional_contents = self.matrix_stratification_values(file)
                         for entity_type, values in additional_contents.items():
                             contents[entity_type].extend(values)
-                yield self._add_replica(contents, file)
+                yield self._add_replica(contents, file, list(map(str, visitor.files)))
 
     def matrix_stratification_values(self, file: api.File) -> JSON:
         """
@@ -1548,7 +1549,7 @@ class CellSuspensionTransformer(PartitionedTransformer):
                             ),
                             dates=[self._date(cell_suspension)],
                             projects=[self._project(self._api_project)])
-            yield self._add_replica(contents, cell_suspension)
+            yield self._add_replica(contents, cell_suspension, list(map(str, visitor.files)))
 
 
 class SampleTransformer(PartitionedTransformer):
@@ -1593,7 +1594,7 @@ class SampleTransformer(PartitionedTransformer):
                             ),
                             dates=[self._date(sample)],
                             projects=[self._project(self._api_project)])
-            yield self._add_replica(contents, sample)
+            yield self._add_replica(contents, sample, list(map(str, visitor.files)))
 
 
 class BundleAsEntity(DatedEntity):
@@ -1693,7 +1694,7 @@ class SingletonTransformer(BaseTransformer, metaclass=ABCMeta):
                         contributed_analyses=contributed_analyses,
                         dates=[self._date(self._singleton_entity())],
                         projects=[self._project(self._api_project)])
-        return self._add_replica(contents, self._singleton_entity())
+        return self._add_replica(contents, self._singleton_entity(), list(map(str, visitor.files)))
 
 
 class ProjectTransformer(SingletonTransformer):

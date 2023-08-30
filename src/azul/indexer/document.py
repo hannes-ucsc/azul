@@ -1096,6 +1096,7 @@ class OpType(Enum):
     index = auto()
     create = auto()
     delete = auto()
+    update = auto()
 
 
 C = TypeVar('C', bound=DocumentCoordinates)
@@ -1302,12 +1303,7 @@ class Document(Generic[C]):
                 {}
                 if op_type is OpType.delete else
                 {
-                    '_source' if bulk else 'body':
-                        self.translate_fields(doc=self.to_json(),
-                                              field_types=field_types[coordinates.entity.catalog],
-                                              forward=True)
-                        if self.needs_translation else
-                        self.to_json()
+                    '_source' if bulk else 'body': self._body(field_types[coordinates.entity.catalog])
                 }
             ),
             '_id' if bulk else 'id': self.coordinates.document_id,
@@ -1337,6 +1333,14 @@ class Document(Generic[C]):
     @property
     def op_type(self) -> OpType:
         raise NotImplementedError
+
+    def _body(self, field_types: FieldTypes) -> JSON:
+        body = self.to_json()
+        if self.needs_translation:
+            body = self.translate_fields(doc=body,
+                                         field_types=field_types,
+                                         forward=True)
+        return body
 
 
 class DocumentSource(SourceRef[SimpleSourceSpec, SourceRef]):
@@ -1524,6 +1528,7 @@ class Replica(Document[ReplicaCoordinates[E]]):
         assert isinstance(self.coordinates, ReplicaCoordinates)
         assert self.coordinates.doc_type is DocumentType.replica
         assert self.entity.entity_type == 'replica', self.entity
+        self.hub_ids.sort()
 
     @classmethod
     def field_types(cls, field_types: FieldTypes) -> FieldTypes:
@@ -1540,7 +1545,29 @@ class Replica(Document[ReplicaCoordinates[E]]):
 
     @property
     def op_type(self) -> OpType:
-        return OpType.create
+        if self.version_type is VersionType.create_only:
+            return OpType.create
+        elif self.version_type is VersionType.none:
+            return OpType.update
+        else:
+            assert False, self.version_type
+
+    def _body(self, field_types: FieldTypes) -> JSON:
+        if self.op_type is OpType.update:
+            return {
+                'script': {
+                    'source': '''
+                    ctx._source.hub_ids.addAll(params.hub_ids);
+                    ctx._source.hub_ids = new ArrayList(new HashSet(ctx._source.hub_ids));
+                    Collections.sort(ctx._source.hub_ids);
+                ''',
+                    'params': {
+                        'hub_ids': self.hub_ids
+                    }
+                }
+            }
+        else:
+            return super()._body(field_types)
 
 
 CataloguedContribution = Contribution[CataloguedEntityReference]
