@@ -79,6 +79,23 @@ class AnvilIndexerTestCase(IndexerTestCase, TDRAnvilPluginTestCase):
         }
 
 
+class TestAnvilIndexerExplicit(AnvilIndexerTestCase):
+
+    # These tests explicitly create and delete the indices, instead of using
+    # setUp/tearDown
+    def test_indexing(self):
+        self.maxDiff = None
+        expected_hits = self._load_canned_result(self.bundle)
+        self.index_service.create_indices(self.catalog)
+        try:
+            self._index_canned_bundle(self.bundle)
+            hits = self._get_all_hits()
+            hits.sort(key=itemgetter('_id'))
+            self.assertEqual(expected_hits, hits)
+        finally:
+            self.index_service.delete_indices(self.catalog)
+
+
 class TestAnvilIndexer(AnvilIndexerTestCase):
 
     def setUp(self) -> None:
@@ -86,16 +103,8 @@ class TestAnvilIndexer(AnvilIndexerTestCase):
         self.index_service.create_indices(self.catalog)
 
     def tearDown(self):
-        self.index_service.delete_indices(self.catalog)
         super().tearDown()
-
-    def test_indexing(self):
-        self.maxDiff = None
-        self._index_canned_bundle(self.bundle)
-        hits = self._get_all_hits()
-        hits.sort(key=itemgetter('_id'))
-        expected_hits = self._load_canned_result(self.bundle)
-        self.assertEqual(expected_hits, hits)
+        self.index_service.delete_indices(self.catalog)
 
     def test_dataset_description(self):
         dataset_ref = EntityReference(entity_type='dataset',

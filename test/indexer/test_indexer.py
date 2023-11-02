@@ -104,15 +104,10 @@ def setUpModule():
     configure_test_logging(log)
 
 
-class TestHCAIndexer(DCP1TestCase, IndexerTestCase):
+class TestHCAIndexerExplicit(DCP1TestCase, IndexerTestCase):
 
-    def setUp(self) -> None:
-        super().setUp()
-        self.index_service.create_indices(self.catalog)
-
-    def tearDown(self):
-        self.index_service.delete_indices(self.catalog)
-        super().tearDown()
+    # These tests create and/or delete the indices explicitly, so they are not
+    # managed via setUp() or `tearDown()`
 
     @cached_property
     def old_bundle(self):
@@ -124,12 +119,6 @@ class TestHCAIndexer(DCP1TestCase, IndexerTestCase):
         return self.bundle_fqid(uuid='aaa96233-bf27-44c7-82df-b4dc15ad4d9d',
                                 version='2018-11-04T11:33:44.698028Z')
 
-    translated_str_null = null_str.to_index(None)
-    translated_int_null = null_int.to_index(None)
-    translated_bool_null = null_bool.to_index(None)
-    translated_bool_true = null_bool.to_index(True)
-    translated_bool_false = null_bool.to_index(False)
-
     @cached_property
     def metadata_plugin(self) -> MetadataPlugin:
         return MetadataPlugin.load(self.catalog).create()
@@ -139,19 +128,19 @@ class TestHCAIndexer(DCP1TestCase, IndexerTestCase):
         Index a bundle and assert the index contents verbatim
         """
         self.maxDiff = None
+        expected_hits = self._load_canned_result(self.old_bundle)
         for max_partition_size in [BundlePartition.max_partition_size, 1]:
             for page_size in (config.contribution_page_size, 1):
                 with self.subTest(page_size=page_size, max_partition_size=max_partition_size):
                     with patch.object(BundlePartition, 'max_partition_size', new=max_partition_size):
                         with patch.object(type(config), 'contribution_page_size', new=page_size):
+                            self.index_service.create_indices(self.catalog)
                             try:
                                 self._index_canned_bundle(self.old_bundle)
-                                expected_hits = self._load_canned_result(self.old_bundle)
                                 hits = self._get_all_hits()
                                 self.assertElasticEqual(expected_hits, hits)
                             finally:
                                 self.index_service.delete_indices(self.catalog)
-                                self.index_service.create_indices(self.catalog)
 
     def test_deletion(self):
         """
@@ -171,10 +160,11 @@ class TestHCAIndexer(DCP1TestCase, IndexerTestCase):
         for bundle_fqid, size in bundle_sizes.items():
             with self.subTest(size=size):
                 bundle = self._load_canned_bundle(bundle_fqid)
+                bundle = DSSBundle(fqid=bundle_fqid,
+                                   manifest=bundle.manifest,
+                                   metadata_files=bundle.metadata_files)
+                self.index_service.create_indices(self.catalog)
                 try:
-                    bundle = DSSBundle(fqid=bundle_fqid,
-                                       manifest=bundle.manifest,
-                                       metadata_files=bundle.metadata_files)
                     self._index_bundle(bundle)
                     hits = self._get_all_hits()
                     self.assertEqual(len(hits), size * 2)
@@ -214,7 +204,23 @@ class TestHCAIndexer(DCP1TestCase, IndexerTestCase):
                         self.assertEqual(list(sorted(doc.coordinates.deleted for doc in pair)), [False, True])
                 finally:
                     self.index_service.delete_indices(self.catalog)
-                    self.index_service.create_indices(self.catalog)
+
+
+class TestHCAIndexer(TestHCAIndexerExplicit):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.index_service.create_indices(self.catalog)
+
+    def tearDown(self):
+        self.index_service.delete_indices(self.catalog)
+        super().tearDown()
+
+    translated_str_null = null_str.to_index(None)
+    translated_int_null = null_int.to_index(None)
+    translated_bool_null = null_bool.to_index(None)
+    translated_bool_true = null_bool.to_index(True)
+    translated_bool_false = null_bool.to_index(False)
 
     def _filter_hits(self,
                      hits: JSONs,
