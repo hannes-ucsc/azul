@@ -29,6 +29,10 @@ Operator
 Manually deploy the ``shared`` component of any main deployment, just before
 pushing the merge commit to the GitLab instance in that deployment.
 
+After the merge commit builds on GitLab, follow the instructions in the
+README.md, for section 3.2.3 titled `Transition Amazon SES resource out of sandbox`.
+This needs to be done for all main deployments, except for ``dev``.
+
 
 #5703 Consolidate dependency updates into single bi-weekly issue
 ================================================================
