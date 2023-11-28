@@ -345,24 +345,26 @@ emit_tf({
                         }
                     }
                 }
+            },
+            'aws_lambda_function_event_invoke_config': {
+                function_name: {
+                    'function_name': '${aws_lambda_function.indexer_%s.function_name}' % function_name,
+                    'maximum_retry_attempts': 0
+                }
+                for function_name in [
+                    *(
+                        ('forward_alb_logs', 'forward_s3_logs')
+                        if config.enable_log_forwarding else
+                        ()
+                    ),
+                    *(
+                        ('notify',)
+                        if config.enable_monitoring else
+                        ()
+                    )
+                ]
             }
         },
-        *([
-              {
-                  'aws_lambda_function_event_invoke_config': {
-                      function_name: {
-                          'function_name': '${aws_lambda_function.indexer_%s.function_name}' % function_name,
-                          'maximum_retry_attempts': 0
-                      }
-                      for function_name in (
-                          'forward_alb_logs',
-                          'forward_s3_logs',
-                      )
-                  }
-              }
-          ]
-          if config.enable_log_forwarding else
-          []),
         *(
             {
                 **chalice.tf_config(app.name)['resource'],
@@ -497,7 +499,19 @@ emit_tf({
                                    }
                                })
                         } for i, domain in enumerate(app.domains)
-                    }
+                    },
+                    **(
+                        {
+                            'notify_ses': {
+                                'zone_id': '${data.aws_route53_zone.%s.id}' % zones_by_domain[app.domains[0]].slug,
+                                'name': '_amazonses.' + config.api_lambda_domain(app.name),
+                                'type': 'TXT',
+                                'ttl': '600',
+                                'records': ['${aws_ses_domain_identity.notify.verification_token}']
+                            }
+                        } if app.name == 'indexer' and config.enable_monitoring else
+                        {}
+                    )
                 },
                 'aws_cloudwatch_log_group': {
                     app.name: {
@@ -619,6 +633,41 @@ emit_tf({
                         }
                     )
                 },
+                **(
+                    {
+                        'aws_ses_domain_identity': {
+                            'notify': {
+                                'domain': config.api_lambda_domain(app.name)
+                            }
+                        },
+                        'aws_ses_identity_policy': {
+                            'notify': {
+                                'identity': '${aws_ses_domain_identity.notify.arn}',
+                                'name': config.qualified_resource_name('notify'),
+                                'policy': json.dumps({
+                                    'Version': '2012-10-17',
+                                    'Statement': [
+                                        {
+                                            'Effect': 'Allow',
+                                            'Principal': {
+                                                'AWS': 'arn:aws:sts::'
+                                                       + aws.account
+                                                       + ':assumed-role/'
+                                                       + config.qualified_resource_name(app.name) + '/'
+                                                       + config.qualified_resource_name(app.name, '-notify')
+                                            },
+                                            'Action': [
+                                                'ses:SendEmail',
+                                                'ses:SendRawEmail'
+                                            ],
+                                            'Resource': '${aws_ses_domain_identity.notify.arn}',
+                                        }
+                                    ]
+                                })
+                            }
+                        }
+                    } if app.name == 'indexer' and config.enable_monitoring else {}
+                ),
                 **(
                     {
                         'aws_lb': {

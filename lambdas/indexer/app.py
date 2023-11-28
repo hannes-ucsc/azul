@@ -34,6 +34,9 @@ from azul.indexer.index_controller import (
 from azul.indexer.log_forwarding_controller import (
     LogForwardingController,
 )
+from azul.indexer.notification_controller import (
+    NotificationController,
+)
 from azul.logging import (
     configure_app_logging,
 )
@@ -75,6 +78,10 @@ class IndexerApp(AzulChaliceApp, SignatureHelper):
         return self._controller(HealthController, lambda_name='indexer')
 
     @cached_property
+    def notification_controller(self):
+        return self._controller(NotificationController)
+
+    @cached_property
     def index_controller(self) -> IndexController:
         return self._controller(IndexController)
 
@@ -94,6 +101,13 @@ class IndexerApp(AzulChaliceApp, SignatureHelper):
             return self.on_s3_event(bucket=aws.logs_bucket,
                                     events=['s3:ObjectCreated:*'],
                                     prefix=prefix)
+        else:
+            return lambda func: func
+
+    @property
+    def monitoring(self):
+        if config.enable_monitoring:
+            return self.on_sns_message(topic=config.qualified_resource_name('monitoring'))
         else:
             return lambda func: func
 
@@ -349,3 +363,8 @@ def forward_alb_logs(event: chalice.app.S3Event):
 )
 def forward_s3_logs(event: chalice.app.S3Event):
     app.log_controller.forward_s3_access_logs(event)
+
+
+@app.monitoring
+def notify(event: chalice.app.SNSEvent):
+    app.notification_controller.notify_group(event)

@@ -68,6 +68,9 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import (
         S3Client,
     )
+    from mypy_boto3_sesv2 import (
+        SESV2Client,
+    )
     from mypy_boto3_stepfunctions import (
         SFNClient,
     )
@@ -154,6 +157,10 @@ class AWS:
     @property
     def sns(self):
         return self.client('sns')
+
+    @property
+    def ses(self) -> 'SESV2Client':
+        return self.client('sesv2')
 
     @property
     def sts(self):
