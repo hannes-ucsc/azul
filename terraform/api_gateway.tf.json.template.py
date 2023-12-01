@@ -356,9 +356,7 @@ emit_tf({
                     lm
                     for lm in ['forward_alb_logs', 'forward_s3_logs']
                     if config.enable_log_forwarding
-                ] + [
-                    'monitoring'
-                ] if config.enable_monitoring
+                ]
             }
         },
         *(
