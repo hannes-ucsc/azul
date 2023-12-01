@@ -351,6 +351,7 @@ emit_tf({
                     'function_name': '${aws_lambda_function.indexer_%s.function_name}' % function_name,
                     'maximum_retry_attempts': 0
                 }
+                # REVIEW: see my comments on your other PR that modifies this section
                 for function_name in [
                     *(
                         ('forward_alb_logs', 'forward_s3_logs')
@@ -502,14 +503,15 @@ emit_tf({
                     },
                     **(
                         {
-                            'notify_ses': {
+                            'notify': {
                                 'zone_id': '${data.aws_route53_zone.%s.id}' % zones_by_domain[app.domains[0]].slug,
-                                'name': '_amazonses.' + config.api_lambda_domain(app.name),
+                                'name': '_amazonses.' + app.domains[0],
                                 'type': 'TXT',
                                 'ttl': '600',
                                 'records': ['${aws_ses_domain_identity.notify.verification_token}']
                             }
-                        } if app.name == 'indexer' and config.enable_monitoring else
+                        }
+                        if app.name == 'indexer' and config.enable_monitoring else
                         {}
                     )
                 },
@@ -637,7 +639,7 @@ emit_tf({
                     {
                         'aws_ses_domain_identity': {
                             'notify': {
-                                'domain': config.api_lambda_domain(app.name)
+                                'domain': app.domains[0]
                             }
                         },
                         'aws_ses_identity_policy': {
@@ -650,6 +652,8 @@ emit_tf({
                                         {
                                             'Effect': 'Allow',
                                             'Principal': {
+                                                # REVIEW: Who or what creates the role this ARN is referring to?
+                                                # And what does the part after the last slash in the ARN signify?
                                                 'AWS': 'arn:aws:sts::'
                                                        + aws.account
                                                        + ':assumed-role/'

@@ -2,7 +2,6 @@ import json
 import logging
 
 from azul import (
-    JSON,
     config,
 )
 from azul.deployment import (
@@ -15,34 +14,31 @@ from azul.strings import (
 log = logging.getLogger(__name__)
 
 
-class AzulEmailNotificationService:
+class EmailService:
 
-    def notify_group(self, subject: str, message: str) -> None:
-        log.info('Notifying group of event %r', trunc_ellipses(message, 256))
-        # Try to improve readability by adding indent
+    @property
+    def to_email(self):
+        return config.monitoring_email
+
+    @property
+    def from_email(self):
+        return ' '.join([
+            'Azul',
+            config.deployment_stage,
+            'Monitoring',
+            '<monitoring@' + config.api_lambda_domain('indexer') + '>'
+        ])
+
+    def send_message(self, subject: str, body: str) -> None:
+        log.info('Sending message %r with body %r',
+                 subject, trunc_ellipses(body, 256))
         try:
-            body = json.loads(message)
+            body = json.loads(body)
         except json.decoder.JSONDecodeError:
-            log.warning('Not a JSON serializable event, sending as received.')
-            body = message
+            log.warning('Not a JSON serializable event, sending as is')
         else:
             body = json.dumps(body, indent=4)
-        response = aws.ses.send_email(
-            FromEmailAddress=' '.join([
-                'Azul',
-                config.deployment_stage,
-                'Monitoring',
-                '<monitoring@' + config.api_lambda_domain('indexer') + '>'
-            ]),
-            Destination={
-                'ToAddresses': [config.monitoring_email]
-            },
-            Content=self._content(subject, body)
-        )
-        log.info('Sent notification %r', response['MessageId'])
-
-    def _content(self, subject: str, body: str) -> JSON:
-        return {
+        content = {
             'Simple': {
                 'Subject': {
                     'Data': subject
@@ -54,3 +50,8 @@ class AzulEmailNotificationService:
                 }
             }
         }
+        response = aws.ses.send_email(FromEmailAddress=self.from_email,
+                                      Destination=dict(ToAddresses=[self.to_email]),
+                                      Content=content)
+        log.info('Successfully sent message %r, message ID is %r',
+                 subject, response['MessageId'])

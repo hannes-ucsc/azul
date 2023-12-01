@@ -7,15 +7,15 @@ from azul.chalice import (
     AppController,
 )
 from azul.indexer.notify_service import (
-    AzulEmailNotificationService,
+    EmailService,
 )
 
 
-class NotificationController(AppController):
+class MonitoringController(AppController):
 
     @cached_property
-    def service(self):
-        return AzulEmailNotificationService()
+    def email_service(self):
+        return EmailService()
 
     def notify_group(self, event: chalice.app.SNSEvent) -> None:
-        self.service.notify_group(event.subject, event.message)
+        self.email_service.send_message(event.subject, event.message)
