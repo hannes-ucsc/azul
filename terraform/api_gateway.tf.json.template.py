@@ -351,19 +351,14 @@ emit_tf({
                     'function_name': '${aws_lambda_function.indexer_%s.function_name}' % function_name,
                     'maximum_retry_attempts': 0
                 }
-                # REVIEW: see my comments on your other PR that modifies this section
-                for function_name in [
-                    *(
-                        ('forward_alb_logs', 'forward_s3_logs')
-                        if config.enable_log_forwarding else
-                        ()
-                    ),
-                    *(
-                        ('notify',)
-                        if config.enable_monitoring else
-                        ()
-                    )
-                ]
+                for function_name in
+                [
+                    lm
+                    for lm in ['forward_alb_logs', 'forward_s3_logs']
+                    if config.enable_log_forwarding
+                ] + [
+                    'monitoring'
+                ] if config.enable_monitoring
             }
         },
         *(
@@ -652,13 +647,14 @@ emit_tf({
                                         {
                                             'Effect': 'Allow',
                                             'Principal': {
-                                                # REVIEW: Who or what creates the role this ARN is referring to?
-                                                # And what does the part after the last slash in the ARN signify?
                                                 'AWS': 'arn:aws:sts::'
                                                        + aws.account
                                                        + ':assumed-role/'
-                                                       + config.qualified_resource_name(app.name) + '/'
-                                                       + config.qualified_resource_name(app.name, '-notify')
+                                                       + '${aws_lambda_function.' + app.name + '.function_name}/'
+                                                       # The following is the role-session-name of the principal
+                                                       # assuming the role via an AWS STS AssumeRole operation.
+                                                       + '${aws_lambda_function.' + '_'.join([app.name, 'notify'])
+                                                       + '.function_name}'
                                             },
                                             'Action': [
                                                 'ses:SendEmail',
