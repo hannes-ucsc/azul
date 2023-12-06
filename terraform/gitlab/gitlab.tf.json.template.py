@@ -17,6 +17,9 @@ from azul.collections import (
 from azul.deployment import (
     aws,
 )
+from azul.docker import (
+    ImageRef,
+)
 from azul.strings import (
     departition,
 )
@@ -1495,6 +1498,42 @@ emit_tf({} if config.terraform_component != 'gitlab' else {
                 'account_ids': [aws.account],
                 'resource_types': ['ECR', 'EC2'],
                 'depends_on': ['aws_iam_service_linked_role.gitlab_ssm']
+            }
+        },
+        'aws_cloudformation_stack': {
+            # Images whose short name begins with '_' are only used outside the
+            # security boundary, so vulnerabilities that are detected within
+            # them do not need to be addressed with the same urgency.
+            #
+            # Using CF stack because the AWS provider does not support
+            # Inspector filters and the AWSCC provider fails due to
+            # https://github.com/hashicorp/terraform-provider-awscc/issues/1364
+            'inspector_filters': {
+                'name': config.qualified_resource_name('inspectorfilters'),
+                'template_body': json.dumps({
+                    'AWSTemplateFormatVersion': '2010-09-09',
+                    'Description': 'Create suppression rules for select containers in AWS inspector',
+                    'Resources': {
+                        # Must be alphanumeric
+                        short_name.replace('_', ''): {
+                            'Type': 'AWS::InspectorV2::Filter',
+                            'Properties': {
+                                'Name': 'exclude_image' + short_name,
+                                'FilterAction': 'SUPPRESS',
+                                'FilterCriteria': {
+                                    'EcrImageRepositoryName': [
+                                        {
+                                            'Comparison': 'EQUALS',
+                                            'Value': ImageRef.parse(full_name).name
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                        for short_name, full_name in config.docker_images.items()
+                        if short_name.startswith('_')
+                    }
+                })
             }
         },
         'google_service_account': {

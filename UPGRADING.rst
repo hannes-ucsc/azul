@@ -82,6 +82,16 @@ Deploy the ``gitlab`` component of any main deployment just before pushing the
 merge commit to the GitLab instance in that deployment.
 
 
+#5738 Suppress Inspector findings for images not used within boundary
+=====================================================================
+
+Operator
+~~~~~~~~
+
+Manually deploy the ``gitlab`` component of any main deployment just before
+pushing the merge commit to the GitLab instance in that deployment.
+
+
 #5617 False positive AWS Inspector findings after GitLab deploy
 ===============================================================
 
