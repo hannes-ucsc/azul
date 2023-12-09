@@ -152,6 +152,10 @@ class TDRPlugin(RepositoryPlugin[BUNDLE, SOURCE_SPEC, SOURCE_REF, BUNDLE_FQID]):
     def tdr(self):
         return self._tdr()
 
+    @property
+    def public_tdr(self):
+        return self._user_authenticated_tdr(None)
+
     # To utilize the caching of certain responses that's occurring within
     # the TDR and DRS client instances (from the TDR API and identifiers.org,
     # respectively), we need to cache these client instances. If we cached the
