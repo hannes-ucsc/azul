@@ -20,6 +20,21 @@ reverted. This is all fairly informal and loosely defined. Hopefully we won't
 have too many entries in this file.
 
 
+#5687 Update Terraform to 1.6.x
+===============================
+
+Everyone
+~~~~~~~~
+
+Update Terraform on your developer machines to version 1.6.5.
+
+Operator
+~~~~~~~~
+
+Manually deploy the ``shared`` component of any main deployment just before
+pushing the merge commit to the GitLab instance in that deployment.
+
+
 #5723 Upgrade dependencies 2023-11-27
 =====================================
 
