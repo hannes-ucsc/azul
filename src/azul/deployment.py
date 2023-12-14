@@ -494,9 +494,9 @@ class AWS:
                 boto3_log.info('%s:\t%s', event_name, message)
         else:
             if response is None:
-                pass  # assuming that exception will be raised and lead to a backtrace in the logs
+                pass  # assuming that an exception will be raised, with a traceback in the logs
             else:
-                assert False, (exception, response)
+                assert False, (exception, type(response))
         return None
 
     @property
