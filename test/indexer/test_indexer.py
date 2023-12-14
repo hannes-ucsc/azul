@@ -104,10 +104,7 @@ def setUpModule():
     configure_test_logging(log)
 
 
-class TestHCAIndexerExplicit(DCP1TestCase, IndexerTestCase):
-
-    # These tests create and/or delete the indices explicitly, so they are not
-    # managed via setUp() or `tearDown()`
+class HCAIndexerTestCase(DCP1TestCase, IndexerTestCase):
 
     @cached_property
     def old_bundle(self):
@@ -122,6 +119,9 @@ class TestHCAIndexerExplicit(DCP1TestCase, IndexerTestCase):
     @cached_property
     def metadata_plugin(self) -> MetadataPlugin:
         return MetadataPlugin.load(self.catalog).create()
+
+
+class TestHCAIndexer(HCAIndexerTestCase):
 
     def test_indexing(self):
         """
@@ -206,7 +206,10 @@ class TestHCAIndexerExplicit(DCP1TestCase, IndexerTestCase):
                     self.index_service.delete_indices(self.catalog)
 
 
-class TestHCAIndexer(TestHCAIndexerExplicit):
+class TestHCAIndexerWithIndexesSetUp(HCAIndexerTestCase):
+    """
+    Conveniently sets up (tears down) indices before (after) each test.
+    """
 
     def setUp(self) -> None:
         super().setUp()

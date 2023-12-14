@@ -79,10 +79,8 @@ class AnvilIndexerTestCase(IndexerTestCase, TDRAnvilPluginTestCase):
         }
 
 
-class TestAnvilIndexerExplicit(AnvilIndexerTestCase):
+class TestAnvilIndexer(AnvilIndexerTestCase):
 
-    # These tests explicitly create and delete the indices, instead of using
-    # setUp/tearDown
     def test_indexing(self):
         self.maxDiff = None
         expected_hits = self._load_canned_result(self.bundle)
@@ -96,7 +94,10 @@ class TestAnvilIndexerExplicit(AnvilIndexerTestCase):
             self.index_service.delete_indices(self.catalog)
 
 
-class TestAnvilIndexer(AnvilIndexerTestCase):
+class TestAnvilIndexerWithIndexesSetUp(AnvilIndexerTestCase):
+    """
+    Conveniently sets up (tears down) indices before (after) each test.
+    """
 
     def setUp(self) -> None:
         super().setUp()
