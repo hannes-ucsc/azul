@@ -621,8 +621,16 @@ class AggregateCoordinates(DocumentCoordinates[CataloguedEntityReference]):
 
 @attr.s(frozen=True, auto_attribs=True, kw_only=True, slots=True)
 class ReplicaCoordinates(DocumentCoordinates[E], Generic[E]):
+    """
+    Document coordinates for replicas. Replicas are content-addressed, so
+    these these coordinates depend not only on the entity reference, but on the
+    contents of the underlying metadata document.
+    """
+
+    doc_type: DocumentType = attr.ib(init=False, default=DocumentType.replica)
+
+    #: A hash of the replica's JSON document
     content_hash: str
-    doc_type: DocumentType = attr.ib(default=DocumentType.replica, init=False)
 
     @property
     def document_id(self) -> str:
@@ -1481,18 +1489,19 @@ class Replica(Document[ReplicaCoordinates[E]]):
     A verbatim copy of a metadata document
     """
 
-    #: The type of replica, i.e., what sort of metadata document in the
+    #: The type of replica, i.e., what sort of metadata document from the
     #: underlying data repository we are storing a copy of. Conceptually related
     #: to the entity type, but its value may be different from the entity type.
     #: For example, AnVIL replicas use the name of the data table that contains
-    #: the entity, e.g. "anvil_file", instead of just "file".
+    #: the entity, e.g. 'anvil_file', instead of just 'file'.
+    #:
     #: We can't model replica types as entity types because we want to hold all
-    #: replicas  in a single index per catalog to facilitate quick retrieval.
+    #: replicas in a single index per catalog to facilitate quick retrieval.
     #: Typically, all replicas of the same type have similar shapes, just like
-    #: contributions for entities of the same type. Mixing replicas of different
-    #: types results in an index containing documents of heterogeneous shapes.
-    #: Document heterogeneity is typically a problem for ES, but we deal with it
-    #: by disabling the ES index mapping, essentially disabling the reverse
+    #: contributions for entities of the same type. However, mixing replicas of
+    #: different types results in an index containing documents of heterogeneous
+    #: shapes. Document heterogeneity is a problem for ES, but we deal with it
+    #: by disabling the ES index mapping, essentially turning off the reverse
     #: index that ES normally builds from these documents and using the index
     #: only to store and retrieve the documents by their coordinates.
     replica_type: str

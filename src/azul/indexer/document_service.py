@@ -96,7 +96,7 @@ class DocumentService:
             Contribution.field_types(field_types),
             aggregate_cls.field_types(field_types)
             # Replicas are intentionally omitted here because their contents
-            # should not undergo translation
+            # does not undergo translation
         )
 
     def catalogued_field_types(self) -> CataloguedFieldTypes:

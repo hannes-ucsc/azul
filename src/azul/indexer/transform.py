@@ -58,6 +58,7 @@ class Transformer(metaclass=ABCMeta):
     def replica_type(self, entity: EntityReference) -> str:
         """
         The type of replica emitted by this transformer.
+
         See :py:attr:`Replica.replica_type`
         """
         raise NotImplementedError
