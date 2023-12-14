@@ -215,15 +215,15 @@ JSON_FILE = TypeVar('JSON_FILE', bound=JsonFile)
 
 @attr.s(frozen=True, kw_only=True, auto_attribs=True)
 class CannedStagingAreaFactory:
-    #: The local path to the repository
-    local_path: Path
+    #: A local path containing one or more staging areas
+    base_path: Path
 
     @classmethod
     def clone_remote(cls, remote_url: furl, local_path: Path, ref: str) -> Self:
         """
         Clone a Git repository into a local path.
 
-        :param remote_url: A GitHub repository clone URL (HTTPS)
+        :param remote_url: A valid Git url
 
         :param local_path: The path to an empty local directory where the
                            repository will be cloned
@@ -231,24 +231,23 @@ class CannedStagingAreaFactory:
         :param ref: A Git ref (branch, tag, or commit SHA)
 
         :return: A CannedStagingAreaFactory object that references the cloned
-                 repository.
+                 repository
         """
         log.debug('Cloning %s into %s', remote_url, local_path)
         repo = git.Repo.clone_from(str(remote_url), local_path)
         log.debug('Checking out ref %s', ref)
         repo.git.checkout(ref)
-        return cls(local_path=local_path)
+        return cls(base_path=local_path)
 
     def load_staging_area(self, path: Path) -> StagingArea:
         """
-        Parse a local staging area.
+        Load and parse the files from local staging area.
 
-        :param path: The relative path inside the repository to the base of the
-                     staging area.
+        :param path: The relative path from `self.base_path` to a staging area
 
         :return: A StagingArea object
         """
-        path = self.local_path / path
+        path = self.base_path / path
         staging_area_folders = {p.name for p in path.iterdir()}
         expected_folders = {'data', 'descriptors', 'links', 'metadata'}
         require(expected_folders == staging_area_folders,
